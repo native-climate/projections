@@ -2,7 +2,7 @@
   <img src="native-climate.png" alt="Native Climate Logo" width="200" height="200" />
 </p>
 
-##**Native Climate CMIP6 Agricultural Climate Projections**
+## **Native Climate CMIP6 Agricultural Climate Projections**
 
 *Native Climate* is a USDA NIFA-funded project to support climate
 adaptation efforts in Native American communities by building new
