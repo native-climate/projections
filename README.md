@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="native-climate.png" alt="Native Climate Logo" width="200" height="200" />
+  <img src="https://native-climate.com/wp-content/uploads/2022/08/NC-logo-web.png" alt="Native Climate Logo" width="200" height="200" />
 </p>
 
 ## **Native Climate CMIP6 Agricultural Climate Projections**
