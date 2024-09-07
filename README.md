@@ -1,7 +1,7 @@
 <p align="center">
-  <img src="native-climate.png" alt="Native Climate Logo" style="width:1.18958in;height:1.18958in" />
+  <img src="native-climate.png" alt="Native Climate Logo" width="100" height="100" />
     &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
-    <img src="mco.png" alt="Native Climate Logo" style="height:0.75in" />
+    <img src="mco.png" alt="Native Climate Logo" height="75" />
 </p>
 
 **Native Climate CMIP6 Agricultural Climate Projections**
