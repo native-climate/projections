@@ -105,7 +105,7 @@ if(!file.exists("cmip6-reservations.parquet")){
     dplyr::transmute(`Division number` = as.integer(Id)) %>%
     dplyr::left_join(
       readr::read_csv("HI_ClimateDivisions.csv")
-      ) %>%
+    ) %>%
     dplyr::transmute(NAMELSAD = paste0("Hawai‘i Climate Divisions — ", `Division name`)) %>%
     sf::st_transform(4326)
   
@@ -132,167 +132,156 @@ tribal_land <-
   dplyr::mutate(`Native Land` = factor(`Native Land`, ordered = TRUE)) %>%
   cmip6:::st_rotate()
 
-cmip6_dir <-
-  "/Volumes/SSD8x2/cmip6/"
-
-cmip6_files <-
-  tibble::tibble(file = list.files(cmip6_dir, full.names = TRUE, pattern = ".nc")) %>%
-  dplyr::mutate(dataset = tools::file_path_sans_ext(basename(file))) %>%
-  tidyr::separate_wider_delim(dataset,
-                              names = c("element", "timestep", "model", "scenario", "run", "type", "year", "version"),
-                              delim = "_",
-                              cols_remove = FALSE,
-                              too_few = "align_start") %>%
-  dplyr::select(model, scenario, run, year, element, file) %>%
-  dplyr::filter(model %in%
-                  c("ACCESS-ESM1-5",
-                    "CNRM-ESM2-1",
-                    "EC-Earth3",
-                    "GFDL-ESM4",
-                    "GISS-E2-1-G",
-                    "MIROC6",
-                    "MPI-ESM1-2-HR",
-                    "MRI-ESM2-0")) %>%
-  dplyr::arrange(model, scenario, run, year, element, file) %>%
-  dplyr::summarise(rasts = list(c(file)),
-                   .by = c(model, scenario, run, year)) %>%
-  dplyr::mutate(dplyr::across(!rasts, \(x) factor(x, ordered = TRUE)))
-
-dir.create(
-  file.path("data-derived",
-            "cmip6"),
-  recursive = TRUE,
-  showWarnings = FALSE
-)
-
-extract_year <-
-  function(x, model, scenario, run, year){
-    out_file <-
-      file.path("data-derived",
-                "cmip6",
-                paste(model,
-                      scenario,
-                      run,
-                      year, sep = "_")) %>%
-      paste0(".parquet")
-    
-    if(!file.exists(out_file)){
-      x %>%
-        terra::rast() %>%
-        # terra::set.names(., terra::time(.)) %>%
-        exactextractr::exact_extract(.,
-                                     tribal_land,
-                                     fun = "mean",
-                                     colname_fun = function(values, weights, fun_name, fun_value, nvalues, nweights){values},
-                                     append_cols = "Native Land",
-                                     max_cells_in_memory = 689314395,
-                                     progress = FALSE) %>%
-        tidyr::pivot_longer(-`Native Land`, names_to = "element") %>%
-        tidyr::separate_wider_delim(element, names = c("element","doy"), delim = "_") %>%
-        dplyr::mutate(doy = as.integer(doy)) %>%
-        dplyr::group_by(element, doy) %>%
-        tidyr::nest() %>%
-        dplyr::ungroup() %>%
-        dplyr::arrange(element, doy) %>%
-        dplyr::mutate(date =
-                        x %>%
-                        terra::rast() %>%
-                        terra::time()) %>%
-        tidyr::unnest(data) %>%
-        dplyr::select(!c(doy)) %>%
-        tidyr::pivot_wider(names_from = element,
-                           values_from = value) %>%
-        dplyr::arrange(`Native Land`, date) %>%
-        arrow::write_parquet(sink = out_file,
-                             version = "latest",
-                             compression = "brotli")
-    }
-    return(out_file)
-  }
-
-cl <- multidplyr::new_cluster(8)
-multidplyr::cluster_copy(cl, c("tribal_land", "extract_year"))
-multidplyr::cluster_library(cl, "magrittr")
-
-tribal_land_data <-
-  cmip6_files %>%
-  # magrittr::extract(1:8,) %>%
-  dplyr::rowwise() %>%
-  multidplyr::partition(cl) %>%
-  dplyr::mutate(
-    extractions = extract_year(x = rasts,
-                               model = model,
-                               scenario = scenario,
-                               run = run,
-                               year = year)
-  ) %>%
-  dplyr::collect()
-
-rm(cl)
-gc();gc()
-
-arrow::read_parquet("data-derived/cmip6/ACCESS-ESM1-5_historical_r1i1p1f1_1950.parquet") %>%
- dplyr::filter(stringr::str_starts(`Native Land`, "Navajo")) %>%
-   ggplot(aes(x = date,
-             y = tasmax,
-             color = `Native Land`)) +
-  geom_line() + 
-  guides(color = "none")
-
-
-cmip6_reservations <-
-  list.files("data-derived/cmip6", full.names = TRUE) |>
-  tibble::tibble(file = _) |>
-  dplyr::mutate(dataset = tools::file_path_sans_ext(basename(file))) |>
-  tidyr::separate_wider_delim(dataset,
-                              names = c("model", "scenario", "run", "year"),
-                              delim = "_",
-                              cols_remove = TRUE,
-                              too_few = "align_start") |>
-  dplyr::select(model, scenario, run, year, file) |>
-  dplyr::mutate(model = factor(model),
-                scenario = scenario |>
-                  forcats::as_factor() |>
-                  forcats::fct_recode("Moderating Emissions (SSP1-2.6)" = "ssp126",
-                                      "Middle of the Road (SSP2-4.5)" = "ssp245",
-                                      "High Emissions (SSP3-7.0)" = "ssp370",
-                                      "Accelerating Emissions (SSP5-8.5)" = "ssp585",
-                                      "Historical Emissions" = "historical"),
-                run = factor(run),
-                year = as.integer(year)
-  ) |>
-  dplyr::rowwise() |>
-  dplyr::mutate(file = arrow::read_parquet(file) |>
-                  list()) |>
-  dplyr::ungroup() |>
-  tidyr::unnest(file)
-
-gc();gc()
-
-
-
-
-#
-# cmip6_reservations |>
-#   arrow::write_parquet(sink = "data-derived/cmip6-reservations.parquet",
-#                                          version = "latest")
-# rm(cmip6_reservations)
-#
+# cmip6_dir <-
+#   "/Volumes/SSD8x2/cmip6/"
+# 
+# cmip6_files <-
+#   tibble::tibble(file = list.files(cmip6_dir, full.names = TRUE, pattern = ".nc")) %>%
+#   dplyr::mutate(dataset = tools::file_path_sans_ext(basename(file))) %>%
+#   tidyr::separate_wider_delim(dataset,
+#                               names = c("element", "timestep", "model", "scenario", "run", "type", "year", "version"),
+#                               delim = "_",
+#                               cols_remove = FALSE,
+#                               too_few = "align_start") %>%
+#   dplyr::select(model, scenario, run, year, element, file) %>%
+#   dplyr::filter(model %in%
+#                   c("ACCESS-ESM1-5",
+#                     "CNRM-ESM2-1",
+#                     "EC-Earth3",
+#                     "GFDL-ESM4",
+#                     "GISS-E2-1-G",
+#                     "MIROC6",
+#                     "MPI-ESM1-2-HR",
+#                     "MRI-ESM2-0")) %>%
+#   dplyr::arrange(model, scenario, run, year, element, file) %>%
+#   dplyr::summarise(rasts = list(c(file)),
+#                    .by = c(model, scenario, run, year)) %>%
+#   dplyr::mutate(dplyr::across(!rasts, \(x) factor(x, ordered = TRUE)))
+# 
+# dir.create(
+#   file.path("data-derived",
+#             "cmip6"),
+#   recursive = TRUE,
+#   showWarnings = FALSE
+# )
+# 
+# extract_year <-
+#   function(x, model, scenario, run, year){
+#     out_file <-
+#       file.path("data-derived",
+#                 "cmip6",
+#                 paste(model,
+#                       scenario,
+#                       run,
+#                       year, sep = "_")) %>%
+#       paste0(".parquet")
+#     
+#     if(!file.exists(out_file)){
+#       x %>%
+#         terra::rast() %>%
+#         # terra::set.names(., terra::time(.)) %>%
+#         exactextractr::exact_extract(.,
+#                                      tribal_land,
+#                                      fun = "mean",
+#                                      colname_fun = function(values, weights, fun_name, fun_value, nvalues, nweights){values},
+#                                      append_cols = "Native Land",
+#                                      max_cells_in_memory = 689314395,
+#                                      progress = FALSE) %>%
+#         tidyr::pivot_longer(-`Native Land`, names_to = "element") %>%
+#         tidyr::separate_wider_delim(element, names = c("element","doy"), delim = "_") %>%
+#         dplyr::mutate(doy = as.integer(doy)) %>%
+#         dplyr::group_by(element, doy) %>%
+#         tidyr::nest() %>%
+#         dplyr::ungroup() %>%
+#         dplyr::arrange(element, doy) %>%
+#         dplyr::mutate(date =
+#                         x %>%
+#                         terra::rast() %>%
+#                         terra::time()) %>%
+#         tidyr::unnest(data) %>%
+#         dplyr::select(!c(doy)) %>%
+#         tidyr::pivot_wider(names_from = element,
+#                            values_from = value) %>%
+#         dplyr::arrange(`Native Land`, date) %>%
+#         arrow::write_parquet(sink = out_file,
+#                              version = "latest",
+#                              compression = "brotli")
+#     }
+#     return(out_file)
+#   }
+# 
+# cl <- multidplyr::new_cluster(8)
+# multidplyr::cluster_copy(cl, c("tribal_land", "extract_year"))
+# multidplyr::cluster_library(cl, "magrittr")
+# 
+# tribal_land_data <-
+#   cmip6_files %>%
+#   # magrittr::extract(1:8,) %>%
+#   dplyr::rowwise() %>%
+#   multidplyr::partition(cl) %>%
+#   dplyr::mutate(
+#     extractions = extract_year(x = rasts,
+#                                model = model,
+#                                scenario = scenario,
+#                                run = run,
+#                                year = year)
+#   ) %>%
+#   dplyr::collect()
+# 
+# rm(cl)
 # gc();gc()
 
-# cmip6_reservations <-
-#   arrow::open_dataset("data-derived/cmip6-reservations.parquet")
+# arrow::read_parquet("data-derived/cmip6/ACCESS-ESM1-5_historical_r1i1p1f1_1950.parquet") %>%
+#  dplyr::filter(stringr::str_starts(`Native Land`, "Navajo")) %>%
+#    ggplot(aes(x = date,
+#              y = tasmax,
+#              color = `Native Land`)) +
+#   geom_line() + 
+#   guides(color = "none")
+
 
 # cmip6_reservations <-
-#   arrow::read_parquet("data-derived/cmip6-reservations.parquet")
-
+#   list.files("data-derived/cmip6", full.names = TRUE) |>
+#   tibble::tibble(file = _) |>
+#   dplyr::mutate(dataset = tools::file_path_sans_ext(basename(file))) |>
+#   tidyr::separate_wider_delim(dataset,
+#                               names = c("model", "scenario", "run", "year"),
+#                               delim = "_",
+#                               cols_remove = TRUE,
+#                               too_few = "align_start") |>
+#   dplyr::select(model, scenario, run, year, file) |>
+#   dplyr::mutate(model = factor(model),
+#                 scenario = scenario |>
+#                   forcats::as_factor() |>
+#                   forcats::fct_recode("Moderating Emissions (SSP1-2.6)" = "ssp126",
+#                                       "Middle of the Road (SSP2-4.5)" = "ssp245",
+#                                       "High Emissions (SSP3-7.0)" = "ssp370",
+#                                       "Accelerating Emissions (SSP5-8.5)" = "ssp585",
+#                                       "Historical Emissions" = "historical"),
+#                 run = factor(run),
+#                 year = as.integer(year)
+#   ) |>
+#   dplyr::rowwise() |>
+#   dplyr::mutate(file = arrow::read_parquet(file) |>
+#                   list()) |>
+#   dplyr::ungroup() |>
+#   tidyr::unnest(file)
+# 
+# gc();gc()
+# 
 # cmip6_reservations |>
 #   group_by(`Native Land`) |>
 #   write_dataset(path = "data-derived/cmip6-reservations",
 #                 format = "feather")
+# 
+# rm(cmip6_reservations)
+# 
+# gc();gc();
+
+
 
 ndays_family <- "BEINF"
-yday_family <- "SHASHo2"
+yday_family <- "NBI"
 precip_family <- "ZAGA"
 
 variable_dists <- 
@@ -300,7 +289,7 @@ variable_dists <-
     ~ Variable, ~ Family,
     
     ## Temperature
-    "Average Temperature [degF]", "SHASHo2",
+    "Average Temperature [degF]", "NO",
     "Growing Degree Days [degF]", "ZAGA",
     "Number of Frost Free Days", ndays_family, 
     
@@ -407,7 +396,7 @@ process_reservation <-
     #              y = tas)) +
     #   geom_line()
     
-    zprojections_falcon <-
+    projections_falcon <-
       cmip6_reservation %>%
       {dplyr::bind_rows(., dplyr::filter(., scenario == "Historical Emissions") %>%
                           dplyr::mutate(scenario = "Moderating Emissions (SSP1-2.6)"))} %>%
@@ -475,6 +464,9 @@ process_reservation <-
                     #   as.numeric()
       ) %>%
       dplyr::ungroup() %>%
+      # dplyr::group_by(model, date) %>%
+      # dplyr::mutate(`Normal Average Temperature [degF]` = ifelse(year < 2015, mean(`Normal Average Temperature [degF]`), `Normal Average Temperature [degF]`)) %>%
+      # dplyr::ungroup() %>%
       dplyr::rename(`Day of Calendar Year` = yday) %>%
       dplyr::group_by(model,
                       scenario) %>%
@@ -499,6 +491,7 @@ process_reservation <-
       dplyr::ungroup()
     
     # projections_falcon %>%
+    # dplyr::arrange(date, model, scenario)
     #   dplyr::filter(model == "ACCESS-ESM1-5") %>%
     #   ggplot(aes(y = `Normal Average Temperature [degF]`,
     #              x = date,
@@ -586,12 +579,39 @@ process_reservation <-
         `Normal Length of Growing Season [days]` = (`Normal Last Day of Growing Season` - `Normal First Day of Growing Season`),
         
         ## Day of first snow after normal hottest day of the year
-        # `Day of First Snow` = as.integer(dplyr::first(`Day of Calendar Year`[`Day of Calendar Year` > `Hottest Day of the Year` & `Frozen Precipitation [in]` > 0], default = as.integer(NA), na_rm = TRUE))
+        `Day of First Snow` = as.integer(dplyr::first(`Day of Calendar Year`[`Day of Calendar Year` > `Hottest Day of the Year` & `Frozen Precipitation [in]` > 0], default = as.integer(NA), na_rm = TRUE))
         
       ) %>%
       dplyr::ungroup() %>%
+      dplyr::mutate(`Normal First Day of Growing Season` = ifelse(Year == 1950 & `Normal First Day of Growing Season` == 6,
+                                                                  1,
+                                                                  `Normal First Day of Growing Season`),
+                    `Normal Last Day of Growing Season` = ifelse(`Normal First Day of Growing Season` != `Normal Hottest Day of the Year` & `Normal Last Day of Growing Season` == `Normal Hottest Day of the Year`,
+                                                                 lubridate::yday(paste0(Year,"-12-31")),
+                                                                 `Normal Last Day of Growing Season`),
+                    `Normal Length of Growing Season [days]` = `Normal Last Day of Growing Season` - `Normal First Day of Growing Season` + 1) %>%
       dplyr::select(model, scenario, Year, dplyr::all_of(variable_dists$Variable)) %>%
       dplyr::arrange(model, scenario, Year)
+    
+    # projections_calendar_year %>%
+    #   # dplyr::mutate(`Normal First Day of Growing Season` = ifelse(Year == 1950 & `Normal First Day of Growing Season` == 6,
+    #   #                                                             1,
+    #   #                                                             `Normal First Day of Growing Season`),
+    #   #               `Normal Last Day of Growing Season` = ifelse(`Normal First Day of Growing Season` != `Normal Hottest Day of the Year` & `Normal Last Day of Growing Season` == `Normal Hottest Day of the Year`,
+    #   #                                                            lubridate::yday(paste0(Year,"-12-31")),
+    #   #                                                            `Normal Last Day of Growing Season`),
+    #   #               `Normal Length of Growing Season [days]` = `Normal Last Day of Growing Season` - `Normal First Day of Growing Season` + 1) %>%
+    #   dplyr::select(model,
+    #                 scenario,
+    #                 Year,
+    #                 # `Normal Hottest Day of the Year`,
+    #                 `Normal First Day of Growing Season`,
+    #                 `Normal Last Day of Growing Season`,
+    #                 `Normal Length of Growing Season [days]`) %>%
+    #   dplyr::arrange(Year, model) %>%
+    #   dplyr::filter(scenario == "High Emissions (SSP3-7.0)",
+    #                 Year >= 2070) %>%
+    #   print(n = 500)
     
     # projections_calendar_year %>%
     #   dplyr::filter(model == 1) %>%
@@ -600,16 +620,7 @@ process_reservation <-
     #              color = scenario)) +
     #   geom_line()
     
-    # projections_calendar_year %>%
-    #   dplyr::select(model,
-    #                 scenario,
-    #                 Year,
-    #                 `First Day of Growing Season`,
-    #                 `Last Day of Growing Season`,
-    #                 `Length of Growing Season [days]`) %>%
-    #   dplyr::arrange(model, Year) %>%
-    #   dplyr::filter(!is.na(`First Day of Growing Season`)) %>%
-    #   print(n = 500)
+    
     # 
     # projections_falcon %>%
     #   dplyr::select(model,
@@ -687,6 +698,10 @@ process_reservation <-
         
       }
     
+    invert_yday <- function(x){
+      as.integer((1 - (x / 366)) * 366)
+    }
+    
     projections_calendar_year_smooth <-
       projections_calendar_year %>%
       dplyr::arrange(model, scenario, Year) %>%
@@ -706,32 +721,37 @@ process_reservation <-
       dplyr::rowwise() %>%
       dplyr::mutate(data = ifelse(Family == ndays_family,
                                   list(data %>%
-                                         dplyr::mutate(value = value / 366)),
+                                         dplyr::mutate(value = value / lubridate::yday(paste0(Year,"-12-31")))),
                                   list(data))) %>%
-      dplyr::mutate(cov = sd(data$value, na.rm = TRUE)/mean(data$value, na.rm = TRUE)) %>%
+      dplyr::mutate(data = ifelse(Variable %in% c("Day of First Snow",
+                                                  "Normal Last Day of Growing Season"),
+                                  list(data %>%
+                                         dplyr::mutate(value = invert_yday(value))),
+                                  list(data))) %>%
+      # dplyr::mutate(cov = sd(data$value, na.rm = TRUE)/mean(data$value, na.rm = TRUE)) %>%
       # dplyr::mutate(cov = ifelse(Family == ndays_family & cov > 2,
       #                                 0,
       #                                 cov)) %>%
       
       # dplyr::filter(Variable == "Number of Days >= 100 ºF") %>%
       # magrittr::extract(18,)  %>%
-      dplyr::mutate(gamlss =
-                      ifelse(
-                        Family == ndays_family & (cov > 3 | is.nan(cov)), 
-                        list(NA),
-                        list(
-                          gamlss::gamlss(
-                            data = dplyr::filter(data, !is.na(value)),
-                            formula = 
-                              value ~ cs(Year, df = 2),
-                            sigma.formula = ~ cs(Year, df = 2),
-                            nu.formula = ~ cs(Year, df = 2),
-                            tau.formula = ~ cs(Year, df = 2),
-                            family = Family,
-                            control = gamlss.control(trace = FALSE)
-                          )
-                        )
-                      )
+      dplyr::mutate(
+        gamlss =
+          list(
+            tryCatch(
+              gamlss::gamlss(
+                data = dplyr::filter(data, !is.na(value)),
+                formula = 
+                  value ~ pb(Year, df = 2, inter = 2),
+                sigma.formula = ~ pb(Year, df = 2, inter = 1),
+                nu.formula = ~ pb(Year, df = 1, inter = 1),
+                tau.formula = ~ pb(Year, df = 1, inter = 1),
+                family = Family,
+                control = gamlss.control(trace = FALSE)
+              ),
+              error = function(e){NA}
+            )
+          )
       )  %>%
       dplyr::mutate(
         gamlss_conf = list(
@@ -743,13 +763,22 @@ process_reservation <-
                       ifelse(Family == ndays_family,
                              list(
                                gamlss_conf %>%
-                                 dplyr::mutate(dplyr::across(!c(Year), \(x) x * 366))
+                                 dplyr::mutate(dplyr::across(!c(Year), \(x) x * 365))
                              ),
                              list(gamlss_conf))) %>%
+      dplyr::mutate(gamlss_conf = ifelse(Variable %in% c("Day of First Snow",
+                                                         "Normal Last Day of Growing Season"),
+                                         list(
+                                           gamlss_conf %>%
+                                             dplyr::mutate(dplyr::across(!c(Year), \(x) invert_yday(x))) %>%
+                                             dplyr::rename(`75%` = `25%`,
+                                                           `25%` = `75%`)
+                                         ),
+                                         list(gamlss_conf))) %>%
       dplyr::ungroup() %>%
       dplyr::select(scenario, Variable, gamlss_conf) %>%
       tidyr::unnest(gamlss_conf) %>%
-      dplyr::mutate(scenario = ifelse(Year <= 2015, "Historical Emissions", scenario)) %>%
+      # dplyr::mutate(scenario = ifelse(Year < 2015, "Historical Emissions", scenario)) %>%
       dplyr::rename(value = `50%`,
                     lower = `25%`,
                     upper = `75%`) %>%
@@ -760,9 +789,42 @@ process_reservation <-
                        .groups = "drop") %>%
       dplyr::arrange(scenario, Variable, Year)
     
-    
-    
-    
+
+# 
+#     test_gamlss <- function(data, family){
+# 
+#       test <- gamlss::gamlss(
+#         data = data,
+#         formula =
+#           value ~ pb(Year, df = 2, inter = 2),
+#         sigma.formula = ~ pb(Year, df = 2, inter = 1),
+#         nu.formula = ~ pb(Year, df = 1, inter = 1),
+#         tau.formula = ~ pb(Year, df = 1, inter = 1),
+#         family = family
+#       )
+# 
+#       gamlss_conf(test,
+#                   data = data) %>%
+#         dplyr::rename(`75%` = `25%`,
+#                       `25%` = `75%`) %>%
+#         ggplot(aes(x = Year)) +
+#         geom_ribbon(aes(ymin = `25%`,
+#                         ymax = `75%`)) +
+#         geom_line(aes(y = `50%`)) +
+#         geom_point(aes(y = value),
+#                    data = data)
+#     }
+# 
+#     test_gamlss(
+#       data = projections_calendar_year_smooth$data[[37]],
+#       family = "NBI"
+#     )
+
+    # 
+    # 
+    # projections_calendar_year %>%
+    #   dplyr::select(model, scenario, Year, `Average Temperature [degF]`, `Normal First Day of Growing Season`,`Normal Last Day of Growing Season`)
+    # 
     # print(projections_calendar_year_smooth, n = 104)
     # test <-
     #   gamlss::gamlss(
@@ -788,9 +850,9 @@ process_reservation <-
     
     outfiles <-
       projections_falcon %>%
-      dplyr::mutate(scenario = ifelse(year <= 2015, "Historical Emissions", scenario)) %>%
+      # dplyr::mutate(scenario = ifelse(year < 2015, "Historical Emissions", scenario)) %>%
       dplyr::select(model:tasmin) %>%
-      dplyr::distinct() %>%
+      # dplyr::distinct() %>%
       dplyr::mutate(NAME = x) %>%
       # dplyr::select(-run) %>%
       dplyr::mutate(dplyr::across(where(is.double), ~round(.x, digits = 4))) %>%
@@ -807,11 +869,11 @@ process_reservation <-
                     `Daily Maximum Near-Surface Air Temperature [degF]` = tasmax,
                     `Daily Minimum Near-Surface Air Temperature [degF]` =  tasmin) %>%
       dplyr::mutate(Scenario = factor(Scenario,
-                                      levels = c("Historical Emissions",
-                                                 "Moderating Emissions (SSP1-2.6)",
-                                                 "Middle of the Road (SSP2-4.5)",
-                                                 "High Emissions (SSP3-7.0)",
-                                                 "Accelerating Emissions (SSP5-8.5)"),
+                                      levels = c(#"Historical Emissions",
+                                        "Moderating Emissions (SSP1-2.6)",
+                                        "Middle of the Road (SSP2-4.5)",
+                                        "High Emissions (SSP3-7.0)",
+                                        "Accelerating Emissions (SSP5-8.5)"),
                                       ordered = TRUE)) %>%
       dplyr::arrange(NAME, Model, Scenario, Date) %>%
       dplyr::group_by(NAME, Scenario) %>%
@@ -821,19 +883,19 @@ process_reservation <-
                          names_prefix = "Raw — ") %>%
       dplyr::left_join(
         projections_calendar_year %>%
-          dplyr::mutate(scenario = ifelse(Year <= 2015, "Historical Emissions", scenario)) %>%
-          dplyr::distinct() %>%
+          # dplyr::mutate(scenario = ifelse(Year < 2015, "Historical Emissions", scenario)) %>%
+          # dplyr::distinct() %>%
           dplyr::mutate(NAME = x) %>%
           dplyr::rename(Model = model,
                         Scenario = scenario) %>%
           # dplyr::select(-run) %>%
           dplyr::mutate(dplyr::across(where(is.double), ~round(.x, digits = 4))) %>%
           dplyr::mutate(Scenario = factor(Scenario,
-                                          levels = c("Historical Emissions",
-                                                     "Moderating Emissions (SSP1-2.6)",
-                                                     "Middle of the Road (SSP2-4.5)",
-                                                     "High Emissions (SSP3-7.0)",
-                                                     "Accelerating Emissions (SSP5-8.5)"),
+                                          levels = c(#"Historical Emissions",
+                                            "Moderating Emissions (SSP1-2.6)",
+                                            "Middle of the Road (SSP2-4.5)",
+                                            "High Emissions (SSP3-7.0)",
+                                            "Accelerating Emissions (SSP5-8.5)"),
                                           ordered = TRUE)) %>%
           dplyr::arrange(NAME, Model, Scenario, Year) %>%
           dplyr::group_by(NAME) %>%
@@ -841,8 +903,8 @@ process_reservation <-
       ) %>%
       dplyr::left_join(
         projections_calendar_year_smooth %>%
-          dplyr::mutate(scenario = ifelse(Year <= 2015, "Historical Emissions", scenario)) %>%
-          dplyr::distinct() %>%
+          # dplyr::mutate(scenario = ifelse(Year < 2015, "Historical Emissions", scenario)) %>%
+          # dplyr::distinct() %>%
           dplyr::mutate(NAME = x) %>%
           dplyr::rename(Scenario = scenario,
                         Value = value,
@@ -850,11 +912,11 @@ process_reservation <-
                         `75th Percentile` = upper) %>%
           dplyr::mutate(dplyr::across(where(is.double), ~round(.x, digits = 4))) %>%
           dplyr::mutate(Scenario = factor(Scenario,
-                                          levels = c("Historical Emissions",
-                                                     "Moderating Emissions (SSP1-2.6)",
-                                                     "Middle of the Road (SSP2-4.5)",
-                                                     "High Emissions (SSP3-7.0)",
-                                                     "Accelerating Emissions (SSP5-8.5)"),
+                                          levels = c(#"Historical Emissions",
+                                            "Moderating Emissions (SSP1-2.6)",
+                                            "Middle of the Road (SSP2-4.5)",
+                                            "High Emissions (SSP3-7.0)",
+                                            "Accelerating Emissions (SSP5-8.5)"),
                                           ordered = TRUE)) %>%
           dplyr::arrange(NAME, Scenario, Variable, Year) %>%
           dplyr::group_by(NAME) %>%
@@ -873,10 +935,11 @@ process_reservation <-
           paste0("CMIP6 ag-climate projections for ", NAME) %>%
           purrr::map(
             c,
-            "This workbook contains agriculturally-relevant climate projections from eight CMIP6 global climate models and four socioeconomic scenarios for the period from 2015 to 2100, as well as the historical experiment for each model for the period 1950 to 2014. Raw data are extracted for the location of the Tribal reservation from the NASA Earth Exchange (NEX) Global Daily Downscaled Projections (GDDP) dataset (NEX-GDDP-CMIP6). Further information on the NASA NEX downscaled product, including descriptions of the projected climate variables, can be found at https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp-cmip6.",
-            "Daily data from each model and scenario were aggregated into seasonal or annual statistics (the 'Annual Projections' worksheet), and then the results from the eight models were combined using a generalized additive model fit to a Tweedie distribution to allow for possibly zero-inflated variables (the 'Smoothed Projections' worksheet). Daily data are provided for each scenario in the 'Raw' worksheets. Growing Degree Days utilize a 50 ºF base temperature in their calculation, making them relevant to corn production.",
+            "This workbook contains place-based climate data for Native American, Alaska Native, and Native Hawaiian lands located in the United States. Climate data and projections for temperature, precipitation, and other metrics related to crop, livestock and forestry agriculture are shown in the accompanying graphs. The data derive from eight Coupled Model Intercomparison Project Phase 6 (CMIP6) global climate models and four socioeconomic scenarios for the period from 2015 to 2100, as well as the historical simulation for each model for the period 1950 to 2014. Raw data are extracted for the location of the reservation from the NASA Earth Exchange (NEX) Global Daily Downscaled Projections (GDDP) dataset (NEX-GDDP-CMIP6). Further information on the NASA NEX downscaled product, including descriptions of the projected climate variables, can be found at https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp-cmip6.",
+            "Spatial data on Native lands were derived from the US Census TIGER/Line database, which includes all tribally controlled lands in the United States, as well as Alaska Native Village Statistical Areas (ANVSA) and State Designated Tribal Statistical Areas (SDTSA). We divided the Navajo Nation into its five agencies to better represent climate differences across the Nation. We used the recently defined climate divisions for the State of Hawai‘i (Luo et al 2024) to represent climate difference on the Hawaiian Islands.",
+            "We aggregated daily data from each model and scenario into seasonal or annual statistics (the Annual Projections worksheet), and then we combined the results from the eight models using a generalized additive model (the Smoothed Projections worksheet). We provide raw daily data for each scenario in the Raw worksheets. Growing Degree Days utilize a 50 ºF base temperature in their calculation, making them relevant to corn production.",
             "These data were produced by the Montana Climate Office and the Native Climate project with funding from the National Institute of Food and Agriculture (NIFA), US Department of Agriculture.",
-            "Please contact Kyle Bocinsky at kyle.bocinsky@umontana.edu with any questions."
+            "Please contact Kyle Bocinsky at kyle.bocinsky@umontana.edu with any questions. Code for producing all data supplied here is freely available on Github: https://github.com/native-climate/cmip6-reservations."
           ) %>%
           purrr::map(tibble::as_tibble)
       ) %>%
@@ -942,11 +1005,11 @@ process_reservation <-
         openxlsx::setColWidths(wb, sheet = "Smoothed Projections",
                                cols = c(1,3), widths = "auto")
         
-        4:8 %>%
+        4:7 %>%
           purrr::walk(~openxlsx::setColWidths(wb, sheet = .x, cols = 1, widths = "auto"))
-        4:8 %>%
+        4:7 %>%
           purrr::walk(~openxlsx::setColWidths(wb, sheet = .x, cols = 3:11, widths = 20))
-        4:8 %>%
+        4:7 %>%
           purrr::walk(~openxlsx::addStyle(wb,
                                           sheet = .x,
                                           style = openxlsx::createStyle(wrapText = TRUE),
@@ -998,6 +1061,9 @@ plot_ag_projections <-
     projections <-
       readxl::read_xlsx(xlsx, sheet = "Annual Projections") %>%
       readr::type_convert(guess_integer = TRUE) %>%
+      dplyr::mutate(Scenario = ifelse(Year < 2015, "Historical Emissions", Scenario)) %>%
+      dplyr::group_by(Model, Scenario, Year) %>%
+      dplyr::mutate(index = dplyr::row_number()) %>%
       dplyr::mutate(
         Scenario = factor(Scenario,
                           levels = c("Historical Emissions",
@@ -1007,11 +1073,18 @@ plot_ag_projections <-
                                      "Accelerating Emissions (SSP5-8.5)"),
                           ordered = TRUE)
       ) %>%
-      tidyr::pivot_longer(-Model:-Year, names_to = "Variable", values_to = "Value") %>%
+      dplyr::mutate(dplyr::across(dplyr::starts_with("Number of"), \(x) ifelse(x > 365, 365, x))) %>%
+      dplyr::mutate(dplyr::across(dplyr::contains("[days]"), \(x) ifelse(x > 365, 365, x))) %>%
+      dplyr::mutate(dplyr::across(dplyr::starts_with("Normal Last"), \(x) ifelse(x > 365, 365, x))) %>%
+      tidyr::pivot_longer(!c(Model, Scenario, Year, index), names_to = "Variable", values_to = "Value") %>%
+      dplyr::group_by(Model, Scenario, Variable, Year) %>%
+      dplyr::mutate(index = dplyr::row_number()) %>%
+      dplyr::ungroup() %>%
       dplyr::arrange(Model, Scenario, Variable, Year) %>%
       group_by(Variable) %>%
       tidyr::nest(Annual = !Variable) %>%
       dplyr::left_join(readxl::read_xlsx(xlsx, sheet = "Smoothed Projections") %>%
+                         dplyr::mutate(Scenario = ifelse(Year < 2015, "Historical Emissions", Scenario)) %>%
                          dplyr::mutate(Scenario = factor(Scenario,
                                                          levels = c("Historical Emissions",
                                                                     "Moderating Emissions (SSP1-2.6)",
@@ -1019,6 +1092,10 @@ plot_ag_projections <-
                                                                     "High Emissions (SSP3-7.0)",
                                                                     "Accelerating Emissions (SSP5-8.5)"),
                                                          ordered = TRUE)) %>%
+                         dplyr::group_by(Scenario, Variable, Year) %>%
+                         dplyr::summarise(Value = mean(Value, na.rm = TRUE),
+                                          `25th Percentile` = min(`25th Percentile`, na.rm = TRUE),
+                                          `75th Percentile` = max(`75th Percentile`, na.rm = TRUE)) %>%
                          group_by(Variable) %>%
                          tidyr::nest(Smoothed = !Variable))
     
@@ -1077,7 +1154,7 @@ plot_ag_projections <-
                      fill = Scenario)) +
           geom_line(data =
                       dplyr::filter(projections, Variable == variable)$Annual[[1]],
-                    mapping = aes(group = interaction(Model, Scenario)),
+                    mapping = aes(group = interaction(Model, Scenario, index)),
                     linewidth = 0.1) +
           geom_ribbon(data =
                         dplyr::filter(projections, Variable == variable)$Smoothed[[1]],
@@ -1123,31 +1200,37 @@ plot_ag_projections <-
       ) %>%
       magrittr::set_names(.,.) %>%
       purrr::map(function(variable){
+        if(is.null(dplyr::filter(projections, Variable == variable)$Smoothed[[1]]))
+          return(NULL)
+        
         ggplot(mapping =
                  aes(x = Year,
-                     y = Value %>%
+                     y = ifelse(Value > 365, 365, Value) %>%
                        round() %>%
                        as.character() %>%
-                       lubridate::parse_date_time(orders = "j") %>%
+                       paste0("-2023") %>%
+                       lubridate::parse_date_time(orders = "j-Y") %>%
                        lubridate::as_date(),
                      color = Scenario,
                      fill = Scenario)) +
           geom_line(data =
                       dplyr::filter(projections, Variable == variable)$Annual[[1]],
-                    mapping = aes(group = interaction(Model, Scenario)),
+                    mapping = aes(group = interaction(Model, Scenario, index)),
                     linewidth = 0.1) +
           geom_ribbon(data =
                         dplyr::filter(projections, Variable == variable)$Smoothed[[1]],
                       mapping =
-                        aes(ymin = `25th Percentile` %>%
+                        aes(ymin = ifelse(`25th Percentile` > 365, 365, `25th Percentile`) %>%
                               round() %>%
                               as.character() %>%
-                              lubridate::parse_date_time(orders = "j") %>%
+                              paste0("-2023") %>%
+                              lubridate::parse_date_time(orders = "j-Y") %>%
                               lubridate::as_date(),
-                            ymax = `75th Percentile` %>%
+                            ymax = ifelse(`75th Percentile` > 365, 365, `75th Percentile`) %>%
                               round() %>%
                               as.character() %>%
-                              lubridate::parse_date_time(orders = "j") %>%
+                              paste0("-2023") %>%
+                              lubridate::parse_date_time(orders = "j-Y") %>%
                               lubridate::as_date()),
                       color = NA,
                       alpha = 0.5,
@@ -1266,7 +1349,8 @@ plot_ag_projections <-
           stringr::str_replace_all("Number of Days with Heat Index.*",
                                    "Heat Index") %>%
           unique()
-      )
+      ) %>%
+      purrr::compact()
     
     cairo_pdf(outfile,
               height = 7.5,
@@ -1321,7 +1405,7 @@ process_all <-
 
 # Start 4 cores
 plan(future.callr::callr,
-     workers = min(parallelly::availableCores() - 2, 48))
+     workers = min(parallelly::availableCores() - 1, 48))
 # plan(future.callr::callr, 
 #      workers = 2)
 
@@ -1331,7 +1415,9 @@ cmip6_reservations <-
     "Blackfeet Indian Reservation",
     "Acoma Pueblo",
     "Hopi Reservation",
-    "Tunica-Biloxi Reservation") %>%
+    "Tunica-Biloxi Reservation",
+    "Arctic Village ANVSA",
+    "Hawai‘i Climate Divisions — Kona") %>%
   furrr::future_map(
     .f = process_all,
     .env_globals = globalenv(),
