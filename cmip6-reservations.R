@@ -1410,14 +1410,14 @@ plan(future.callr::callr,
 #      workers = 2)
 
 cmip6_reservations <-
-  # tribal_land$`Native Land` %>%
-  c("Akutan ANVSA", 
-    "Blackfeet Indian Reservation",
-    "Acoma Pueblo",
-    "Hopi Reservation",
-    "Tunica-Biloxi Reservation",
-    "Arctic Village ANVSA",
-    "Hawai‘i Climate Divisions — Kona") %>%
+  tribal_land$`Native Land` %>%
+  # c("Akutan ANVSA", 
+  #   "Blackfeet Indian Reservation",
+  #   "Acoma Pueblo",
+  #   "Hopi Reservation",
+  #   "Tunica-Biloxi Reservation",
+  #   "Arctic Village ANVSA",
+  #   "Hawai‘i Climate Divisions — Kona") %>%
   furrr::future_map(
     .f = process_all,
     .env_globals = globalenv(),
