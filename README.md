@@ -4,7 +4,7 @@
 
 ## **Native Climate CMIP6 Agricultural Climate Projections**
 
-*Native Climate* is a USDA NIFA-funded project to support climate
+[*Native Climate*](https://native-climate.com) is a USDA NIFA-funded project to support climate
 adaptation efforts in Native American communities by building new
 connections between Native wisdom and Western scientific data. Through
 two-way information-sharing and relationship-building, Native Climate
