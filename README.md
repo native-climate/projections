@@ -6,10 +6,10 @@
 
 <p align="center">
 **Data are available via a searchable web map at  
-<https://native-climate.github.io/cmip6-reservations/>**
+[https://native-climate.github.io/cmip6-reservations/](https://native-climate.github.io/cmip6-reservations/)**
 <br/><br/>
 **Browse the archive here:  
-<https://data.climate.umt.edu/projections/native-climate/>**
+[https://data.climate.umt.edu/projections/native-climate/](https://data.climate.umt.edu/projections/native-climate/)**
 </p>
 
 [*Native Climate*](https://native-climate.com) is a USDA NIFA-funded project to support climate
