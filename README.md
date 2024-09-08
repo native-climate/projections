@@ -6,10 +6,10 @@
 
 <p align="center">
 <strong>Data are available via a searchable web map at<br>
-https://native-climate.github.io/cmip6-reservations/</strong>
+https://native-climate.com/projections/</strong>
 <br><br>
 <strong>Browse the archive here:<br>
-https://data.climate.umt.edu/projections/native-climate/</strong>
+https://data.climate.umt.edu/native-climate/projections/</strong>
 </p>
 
 [*Native Climate*](https://native-climate.com) is a USDA NIFA-funded project to support climate
@@ -262,4 +262,4 @@ the Montana Climate Office with any technical questions about these
 data:
 [kyle.bocinsky@umontana.edu](mailto:kyle.bocinsky@umontana.edu?subject=CMIP6%20Tribal%20Projections).
 Code for producing all data supplied here is freely available on Github:
-<https://github.com/native-climate/cmip6-reservations>.**
+<https://github.com/native-climate/projections>.**
