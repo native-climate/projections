@@ -49,8 +49,8 @@ tribal_land %>%
       glue::glue(
         "<h2 style='text-align: center'>&emsp;{`Native Land`}&emsp;</h2>
 <p style='text-align: center'>
-<a href='https://data.climate.umt.edu/projections/native-climate/{`Native Land`}.zip' download>
-  Download CMIP6 Projections Here
+<a href='https://data.climate.umt.edu/projections/native-climate/{under_name}.zip' download style='color: #000000; text-decoration: none;'>
+  <img src = 'download.svg' alt='Download CMIP6 data for {`Native Land`}' width='50' height='50'/><br>DOWNLOAD
 </a>
         </p>"
         )
