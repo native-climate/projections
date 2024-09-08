@@ -44,10 +44,15 @@ mapview::mapview(tribal_land)
 library(leaflet.extras)
 tribal_land %>%
   dplyr::mutate(
+    under_name = stringr::str_replace_all(`Native Land`, " ", "_"),
     pop = 
       glue::glue(
         "<h2 style='text-align: center'>&emsp;{`Native Land`}&emsp;</h2>
-<p style='text-align: center'>A cool link</p>"
+<p style='text-align: center'>
+<a href='https://data.climate.umt.edu/projections/native-climate/{`Native Land`}.zip' download>
+  Download CMIP6 Projections Here
+</a>
+        </p>"
         )
     ) %>%
 mapview::mapview(x = .,
@@ -88,8 +93,7 @@ mapview::mapview(x = .,
   leafem::removeMouseCoordinates() %>%
   htmlwidgets::onRender("function(el, x) {
         L.control.zoom({ position: 'bottomright' }).addTo(this)
-    }")%>%
-  htmlwidgets::saveWidget(file = "index.html",
-                           title = "Native Climate
-CMIP6 Agricultural Climate Projections")
+    }") %>%
+  htmlwidgets::saveWidget(file = "docs/index.html",
+                           title = "Native Climate CMIP6 Agricultural Climate Projections")
 
