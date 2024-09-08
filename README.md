@@ -2,7 +2,9 @@
   <img src="https://native-climate.com/wp-content/uploads/2022/08/NC-logo-web.png" alt="Native Climate Logo" width="200" height="200" />
 </p>
 
-## **Native Climate CMIP6 Agricultural Climate Projections**
+<h align="center">
+<strong>Native Climate CMIP6 Agricultural Climate Projections</strong>
+</h>
 
 <p align="center">
 <strong>Data are available via a searchable web map at<br>
