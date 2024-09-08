@@ -5,8 +5,8 @@
 ## **Native Climate CMIP6 Agricultural Climate Projections**
 
 <p align="center">
-**Data are available via a searchable web map at**<br>
-**https://native-climate.github.io/cmip6-reservations/**
+<strong>Data are available via a searchable web map at<br>
+**https://native-climate.github.io/cmip6-reservations/</strong>
 <br><br>
 **Browse the archive here:**<br>
 **https://data.climate.umt.edu/projections/native-climate/**
