@@ -32,8 +32,8 @@ openxlsx_setOp("dateFormat", "yyyy-mm-dd")
 openxlsx_setOp("tableStyle", "TableStyleLight1")
 openxlsx_setOp("numFmt", "NUMBER")
 
-if(!file.exists("cmip6-reservations.parquet")){
-  unlink("cmip6-reservations.parquet")
+if(!file.exists("native-land.parquet")){
+  unlink("native-land.parquet")
   
   tribal_land <- 
     tigris::native_areas() %>%
@@ -120,7 +120,7 @@ if(!file.exists("cmip6-reservations.parquet")){
     sf::st_cast("MULTIPOLYGON") %>%
     dplyr::mutate(`Native Land`  = stringr::str_replace_all(`Native Land`, "/", " and "),
                   `Native Land` = factor(`Native Land`, ordered = TRUE)) %T>%
-    sf::write_sf("cmip6-reservations.parquet",
+    sf::write_sf("native-land.parquet",
                  layer_options = c("COMPRESSION=BROTLI",
                                    "GEOMETRY_ENCODING=GEOARROW",
                                    "WRITE_COVERING_BBOX=NO"),
@@ -128,7 +128,7 @@ if(!file.exists("cmip6-reservations.parquet")){
 }
 
 tribal_land <- 
-  sf::read_sf("cmip6-reservations.parquet") %>%
+  sf::read_sf("native-land.parquet") %>%
   dplyr::mutate(`Native Land` = factor(`Native Land`, ordered = TRUE)) %>%
   cmip6:::st_rotate()
 

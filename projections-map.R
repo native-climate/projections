@@ -35,11 +35,9 @@ terra::gdalCache(32000)
 
 
 tribal_land <- 
-  sf::read_sf("cmip6-reservations.parquet") %>%
+  sf::read_sf("native-land.parquet") %>%
   dplyr::mutate(`Native Land` = factor(`Native Land`, ordered = TRUE)) %>%
   cmip6:::st_rotate()
-
-mapview::mapview(tribal_land)
 
 library(leaflet.extras)
 tribal_land %>%
@@ -49,7 +47,7 @@ tribal_land %>%
       glue::glue(
         "<h2 style='text-align: center'>&emsp;{`Native Land`}&emsp;</h2>
 <p style='text-align: center'>
-<a href='https://data.climate.umt.edu/projections/native-climate/{under_name}.zip' download style='color: #000000; text-decoration: none;'>
+<a href='https://data.climate.umt.edu/native-climate/projections/{under_name}.zip' download style='color: #000000; text-decoration: none;'>
   <img src = 'download.svg' alt='Download CMIP6 data for {`Native Land`}' width='50' height='50'/><br>DOWNLOAD
 </a>
         </p>"
@@ -114,11 +112,11 @@ for each model for the period 1950 to 2014. Raw data are extracted for
 the location of the reservation from the NASA Earth Exchange (NEX)
 Global Daily Downscaled Projections (GDDP) dataset (NEX-GDDP-CMIP6)."
   ) %>% 
-  meta_name("github-repo" = "native-climate/cmip6-reservations") %>% 
+  meta_name("github-repo" = "native-climate/projections") %>% 
   meta_viewport() %>% 
   meta_social(
     title = "Native Climate CMIP6 Agricultural Climate Projections",
-    url = "https://native-climate.github.io/cmip6-reservations/",
+    url = "https://native-climate.github.io/projections/",
     image = "https://native-climate.com/wp-content/uploads/2022/08/NC-logo-web.png",
     image_alt = "Native Climate Logo",
     og_type = "website",
