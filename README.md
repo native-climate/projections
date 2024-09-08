@@ -4,12 +4,12 @@
 
 ## **Native Climate CMIP6 Agricultural Climate Projections**
 
-<p align="center" style="font-weight:bold">
-Data are available via a searchable web map at<br>
-https://native-climate.github.io/cmip6-reservations/
+<p align="center">
+**Data are available via a searchable web map at**<br>
+**https://native-climate.github.io/cmip6-reservations/**
 <br><br>
-Browse the archive here:<br>
-https://data.climate.umt.edu/projections/native-climate/
+**Browse the archive here:**<br>
+**https://data.climate.umt.edu/projections/native-climate/**
 </p>
 
 [*Native Climate*](https://native-climate.com) is a USDA NIFA-funded project to support climate
