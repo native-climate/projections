@@ -17,10 +17,10 @@ Arizona Tribal Extension, and the USDA Climate Hubs. The project team
 includes Tribal natural resource managers, agriculture producers, and
 climate leaders along with 1994 and 1862 Tribal Extension, researchers
 working in Indian Country, other federal and state climate service
-organizations, and a group of Native American advisors. *Native Climate*
+organizations, and a group of Native American advisors. *Native Climate*
 is funded by the U.S. Department of Agriculture, National Institute of
-Food and Agriculture (USDA NIFA) and builds on the work of the [Native
-Waters on Arid Lands](https://nativewaters-aridlands.com/) project
+Food and Agriculture (USDA NIFA) and builds on the work of the [Native
+Waters on Arid Lands](https://nativewaters-aridlands.com/) project
 (2015–2022).
 
 Native Climate partners at the Montana Climate Office have extracted

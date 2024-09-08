@@ -29,7 +29,7 @@ library(mapview)
 mapviewOptions(
   # platform = "mapdeck"
   fgb = TRUE
-  )
+)
 options(future.rng.onMisuse="ignore")
 terra::gdalCache(32000)
 
@@ -53,19 +53,19 @@ tribal_land %>%
   <img src = 'download.svg' alt='Download CMIP6 data for {`Native Land`}' width='50' height='50'/><br>DOWNLOAD
 </a>
         </p>"
-        )
-    ) %>%
-mapview::mapview(x = .,
-                 popup = .$pop,
-                 label = "Native Land",
-                 zcol = "Native Land",
-                 legend = FALSE, 
-                 layer.name = "area",
-                 map.types = "CartoDB.Positron",
-                 homebutton = FALSE) %>%
-    mapview::removeMapJunk(junk = c("zoomControl",
-                                    "layersControl",
-                                    "scaleBar")) %>%
+      )
+  ) %>%
+  mapview::mapview(x = .,
+                   popup = .$pop,
+                   label = "Native Land",
+                   zcol = "Native Land",
+                   legend = FALSE, 
+                   layer.name = "area",
+                   map.types = "CartoDB.Positron",
+                   homebutton = FALSE) %>%
+  mapview::removeMapJunk(junk = c("zoomControl",
+                                  "layersControl",
+                                  "scaleBar")) %>%
   leaflet.extras::addSearchFeatures(
     targetGroups = "area",
     options = 
@@ -87,13 +87,45 @@ mapview::mapview(x = .,
                 stroke = TRUE, 
                 fill = FALSE
               )
-            )
-        )
+          )
+      )
   ) %>%
   leafem::removeMouseCoordinates() %>%
   htmlwidgets::onRender("function(el, x) {
         L.control.zoom({ position: 'bottomright' }).addTo(this)
     }") %>%
   htmlwidgets::saveWidget(file = "docs/index.html",
-                           title = "Native Climate CMIP6 Agricultural Climate Projections")
+                          selfcontained = FALSE,
+                          title = "Native Climate CMIP6 Agricultural Climate Projections")
 
+library(metathis)
+
+meta() %>%
+  meta_description(
+    "Native Climate partners at the Montana Climate Office have extracted
+place-based climate data for Native American, Alaska Native, and Native
+Hawaiian lands located in the United States. Climate data and
+projections for temperature, precipitation, and other metrics related to
+crop, livestock and forestry agriculture are shown in the accompanying
+graphs. The data derive from eight Coupled Model Intercomparison Project
+Phase 6 (CMIP6) global climate models and four socioeconomic scenarios
+for the period from 2015 to 2100, as well as the historical simulation
+for each model for the period 1950 to 2014. Raw data are extracted for
+the location of the reservation from the NASA Earth Exchange (NEX)
+Global Daily Downscaled Projections (GDDP) dataset (NEX-GDDP-CMIP6)."
+  ) %>% 
+  meta_name("github-repo" = "native-climate/cmip6-reservations") %>% 
+  meta_viewport() %>% 
+  meta_social(
+    title = "Native Climate CMIP6 Agricultural Climate Projections",
+    url = "https://native-climate.github.io/cmip6-reservations/",
+    image = "https://native-climate.com/wp-content/uploads/2022/08/NC-logo-web.png",
+    image_alt = "Native Climate Logo",
+    og_type = "website",
+    og_author = c("Kyle Bocinsky")
+  )
+
+?metathis::include_meta()
+
+
+widget <- htmlwidgets:: read_html("docs/index.html")
