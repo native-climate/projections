@@ -42,13 +42,15 @@ tribal_land <-
 library(leaflet.extras)
 tribal_land %>%
   dplyr::mutate(
-    under_name = stringr::str_replace_all(`Native Land`, " ", "_"),
+    under_name = stringr::str_replace_all(`Native Land`, " ", "_") %>%
+      stringr::str_replace_all("'", "&apos;"),
+    over_name =  stringr::str_replace_all(`Native Land`, "'", "&apos;"),
     pop = 
       glue::glue(
         "<h2 style='text-align: center'>&emsp;{`Native Land`}&emsp;</h2>
 <p style='text-align: center'>
 <a href='https://data.climate.umt.edu/native-climate/projections/{under_name}.zip' download style='color: #000000; text-decoration: none;'>
-  <img src = 'download.svg' alt='Download CMIP6 data for {`Native Land`}' width='50' height='50'/><br>DOWNLOAD
+  <img src = 'download.svg' alt='Download CMIP6 data for {over_name}' width='50' height='50'/><br>DOWNLOAD
 </a>
         </p>"
       )
@@ -123,7 +125,7 @@ Global Daily Downscaled Projections (GDDP) dataset (NEX-GDDP-CMIP6)."
     og_author = c("Kyle Bocinsky")
   )
 
-?metathis::include_meta()
+# ?metathis::include_meta()
 
-
-widget <- htmlwidgets:: read_html("docs/index.html")
+# 
+# widget <- htmlwidgets:: read_html("docs/index.html")
