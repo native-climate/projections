@@ -50,23 +50,31 @@ tribal_land %>%
     over_name =  stringr::str_replace_all(`Native Land`, "'", "&apos;"),
     pop = 
       glue::glue(
-        "<h2 style='text-align: center'>&emsp;{`Native Land`}&emsp;</h2>
+        "
+        <h2 style='text-align: center'>{`Native Land`}</h2>
         
+        <div id='gallery-text'>
+    <div class='gallery-text'>
         <p style='text-align: center'>
 <a href='https://data.climate.umt.edu/native-climate/projections/pdf/{over_name}_CMIP6-climate-projections.pdf' target='_blank' style='color: #000000; text-decoration: none;'>
   <img src = 'pdf.svg' alt='Download CMIP6 data for {over_name}' width='50' height='50'/><br>VIEW
 </a>
         </p>
-        
+        </div>
+         <div class='gallery-text'>
 <p style='text-align: center'>
 <a href='https://data.climate.umt.edu/native-climate/projections/{under_name}.zip' download style='color: #000000; text-decoration: none;'>
   <img src = 'download.svg' alt='Download CMIP6 data for {over_name}' width='50' height='50'/><br>DOWNLOAD
 </a>
-        </p>"
+        </p>
+        </div>
+        </div>"
       )
   ) %>%
   mapview::mapview(x = .,
                    popup = .$pop,
+                   popupOptions = popupOptions(maxWidth = 150,
+                                               minWidth = 150),
                    label = "Native Land",
                    zcol = "Native Land",
                    legend = FALSE, 
@@ -134,6 +142,21 @@ Global Daily Downscaled Projections (GDDP) dataset (NEX-GDDP-CMIP6)."
     og_type = "website",
     og_author = c("Kyle Bocinsky")
   )
+
+
+
+#   .gallery-text {
+#     float: left;
+#     width: 48%;
+#     margin: 1%;
+# }
+# .gallery-text p {
+#     word-break: break-all;
+# }
+# .leaflet-popup-content {
+#   width: 200px;
+# }
+
 
 # ?metathis::include_meta()
 
