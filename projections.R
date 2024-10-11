@@ -1430,6 +1430,39 @@ gc()
 gc()
 
 
+# Start 4 cores
+plan(future.callr::callr,
+     workers = min(parallelly::availableCores() - 1, 48))
+# plan(future.callr::callr, 
+#      workers = 2)
+
+list.files("upload/pdf",
+           pattern = "pdf",
+           recursive = TRUE,
+           full.names = TRUE) %>%
+  furrr::future_map(
+    .f = \(x) system(paste0("~/git/compress.sh ", x)),
+    .env_globals = globalenv(),
+    .options = furrr::furrr_options(scheduling = FALSE),
+    .progress = TRUE
+  )
+
+plan(sequential)
+gc()
+gc()
+
+# scp -r upload/pdf kbocinsky@fcfc-mcoapps:/var/data/native-climate/projections/
+
+
+# list.files("output",
+#            pattern = "pdf",
+#            recursive = TRUE,
+#            full.names = TRUE) %>%
+#   purrr::walk(
+#     ~qpdf::pdf_combine(input = c("Native Climate Agricultural Projections Summary.pdf", .x),
+#                        output = paste0(.x, ".new.pdf"))
+#   )
+
 
 
 

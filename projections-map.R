@@ -15,7 +15,10 @@ packages <- c("magrittr",
               "furrr",
               "future.callr",
               "parallelly",
-              "mapdeck"
+              "mapdeck",
+              "mt-climate-office/cmip6",
+              "leaflet.extras",
+              "metathis"
 )
 
 pak::pak(packages, ask = FALSE)
@@ -48,6 +51,13 @@ tribal_land %>%
     pop = 
       glue::glue(
         "<h2 style='text-align: center'>&emsp;{`Native Land`}&emsp;</h2>
+        
+        <p style='text-align: center'>
+<a href='https://data.climate.umt.edu/native-climate/projections/pdf/{over_name}_CMIP6-climate-projections.pdf' target='_blank' style='color: #000000; text-decoration: none;'>
+  <img src = 'pdf.svg' alt='Download CMIP6 data for {over_name}' width='50' height='50'/><br>VIEW
+</a>
+        </p>
+        
 <p style='text-align: center'>
 <a href='https://data.climate.umt.edu/native-climate/projections/{under_name}.zip' download style='color: #000000; text-decoration: none;'>
   <img src = 'download.svg' alt='Download CMIP6 data for {over_name}' width='50' height='50'/><br>DOWNLOAD
